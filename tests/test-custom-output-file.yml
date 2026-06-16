@@ -1,0 +1,38 @@
+name: Test custom output file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          github_user_name: octocat
+          output_file: my-custom-invaders.svg
+      - name: Assert custom SVG light file exists on disk
+        run: |
+          echo "Checking for SVG file at: $GITHUB_WORKSPACE/my-custom-invaders.svg"
+          if [ ! -f "$GITHUB_WORKSPACE/my-custom-invaders.svg" ]; then
+            echo "FAIL: custom SVG file not found at $GITHUB_WORKSPACE/my-custom-invaders.svg"
+            exit 1
+          fi
+          echo "PASS: custom SVG light file exists"
+      - name: Assert custom SVG dark file exists on disk
+        run: |
+          echo "Checking for SVG dark file at: $GITHUB_WORKSPACE/my-custom-invaders-dark.svg"
+          if [ ! -f "$GITHUB_WORKSPACE/my-custom-invaders-dark.svg" ]; then
+            echo "FAIL: custom SVG dark file not found at $GITHUB_WORKSPACE/my-custom-invaders-dark.svg"
+            exit 1
+          fi
+          echo "PASS: custom SVG dark file exists"
+      - name: Assert custom SVG file contains SVG content
+        run: |
+          if ! grep -q '<svg' "$GITHUB_WORKSPACE/my-custom-invaders.svg"; then
+            echo "FAIL: file does not appear to be an SVG"
+            exit 1
+          fi
+          echo "PASS: file contains SVG content"

@@ -1,0 +1,48 @@
+name: Test no scoreboard
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          github_user_name: octocat
+          output_file: commit-invaders-no-scoreboard.svg
+          no_scoreboard: 'true'
+      - name: Assert SVG light file exists on disk
+        run: |
+          echo "Checking for SVG file at: $GITHUB_WORKSPACE/commit-invaders-no-scoreboard.svg"
+          if [ ! -f "$GITHUB_WORKSPACE/commit-invaders-no-scoreboard.svg" ]; then
+            echo "FAIL: SVG file not found at $GITHUB_WORKSPACE/commit-invaders-no-scoreboard.svg"
+            exit 1
+          fi
+          echo "PASS: SVG file exists"
+      - name: Assert SVG dark file exists on disk
+        run: |
+          echo "Checking for SVG dark file at: $GITHUB_WORKSPACE/commit-invaders-no-scoreboard-dark.svg"
+          if [ ! -f "$GITHUB_WORKSPACE/commit-invaders-no-scoreboard-dark.svg" ]; then
+            echo "FAIL: SVG dark file not found at $GITHUB_WORKSPACE/commit-invaders-no-scoreboard-dark.svg"
+            exit 1
+          fi
+          echo "PASS: SVG dark file exists"
+      - name: Assert SVG file contains SVG content
+        run: |
+          if ! grep -q '<svg' "$GITHUB_WORKSPACE/commit-invaders-no-scoreboard.svg"; then
+            echo "FAIL: file does not appear to be an SVG"
+            exit 1
+          fi
+          echo "PASS: file contains SVG content"
+      - name: Assert SVG file is non-empty
+        run: |
+          SIZE=$(wc -c < "$GITHUB_WORKSPACE/commit-invaders-no-scoreboard.svg")
+          echo "svg size: $SIZE bytes"
+          if [ "$SIZE" -le 0 ]; then
+            echo "FAIL: SVG file is empty"
+            exit 1
+          fi
+          echo "PASS: SVG file is non-empty"

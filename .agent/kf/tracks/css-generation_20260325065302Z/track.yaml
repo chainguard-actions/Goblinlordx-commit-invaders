@@ -1,0 +1,141 @@
+id: css-generation_20260325065302Z
+title: "CSS/SVG Hitbox Renderer & Automated Visual Validation"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Map SimOutput inflection timelines to CSS keyframe animations, compose
+    an SVG that renders the SAME hitbox view as the canvas renderer (flat
+    colored AABB rects), and validate pixel-for-pixel alignment via
+    Playwright screenshot comparison.
+  context: |
+    Pipeline: SimOutput.getInflections() → CSS keyframes → SVG
+
+    This track produces a HITBOX-ONLY SVG — same flat colored rects as
+    the canvas sim-renderer. No sprites, no effects, no polish. The goal
+    is to prove the CSS animation positioning matches the simulation's
+    physics exactly.
+
+    Validation strategy:
+    1. Canvas renderer (sim-renderer track) draws AABB hitbox rects
+    2. This track's SVG draws the SAME rects using CSS keyframe animations
+    3. Playwright screenshots both at identical frames
+    4. Pixel diff must be near-zero — both renderers derive from the same
+       SimOutput, just different rendering paths (canvas vs CSS/SVG)
+
+    If the hitbox rects align, the positioning math is correct. A later
+    visual polish track replaces rects with sprites/effects without
+    changing the underlying positioning layer.
+
+    Inflection points are pre-computed by simulate() and stored in
+    SimOutput.entityTimelines. This track maps frame numbers to CSS
+    animation percentages — no extraction logic needed.
+  codebase_analysis: |
+    Builds on SimOutput from simulate() and sim-renderer hitbox view.
+    Inflection points come pre-computed — just query and transform.
+    CSS seek via negative animation-delay is a well-known technique.
+
+    Canvas renderer uses these exact drawing rules (must match):
+      Grid cells:  rect at grid positions, cellSize, green shades by level
+      Invaders:    rect centered on world position, config.invaderSize, #ff4444
+      Lasers:      rect centered on position, config.laserWidth, #ffff00
+      Ship:        rect centered on (ship.x, shipY), #4488ff
+  acceptance_criteria:
+    - SVG renders flat colored AABB rects matching canvas renderer exactly
+    - Same entity colors as canvas (grid greens, invader #ff4444, laser #ffff00, ship #4488ff)
+    - Same entity sizes as canvas (invaderSize, laserWidth, cellSize from config)
+    - Reads inflection points from SimOutput.getInflections()
+    - Maps inflection frame numbers to CSS animation percentages
+    - Per-entity CSS keyframes from inflection timelines
+    - Formation movement via <g> group animation
+    - CSS SVG seekable via negative animation-delay technique
+    - Playwright pixel-diff: canvas screenshot vs SVG screenshot at inflection frames
+    - Pixel diff under 1% threshold (hitbox rects should match near-perfectly)
+    - GitHub-safe SVG (no JS, no external resources)
+  out_of_scope: |
+    Sprites, visual effects, explosions, glow (visual polish track).
+    Light/dark palettes (visual polish track).
+    GitHub Action packaging. GIF output.
+  technical_notes: |
+    Directory structure:
+      src/
+        animation/
+          timeline.ts         — frame-to-CSS-percentage mapping
+          keyframe-emitter.ts — CSS @keyframes from SimOutput inflections
+          data-emitter.ts     — per-element CSS variable style attributes
+        renderer/
+          compositor.ts       — assembles hitbox SVG (rects only)
+      dev/
+        css-validator/
+          index.html          — side-by-side canvas vs CSS SVG
+          controller.ts       — synchronized frame/time seeking
+      tests/
+        visual/
+          hitbox-alignment.spec.ts  — Playwright regression tests
+
+    SVG structure (hitbox mode):
+      <svg>
+        <style> /* CSS keyframes + entity animations */ </style>
+        <g class="grid"> <rect .../> per cell </g>
+        <g class="formation-0"> <rect .../> per invader </g>
+        ...
+        <rect class="ship" .../>
+        <rect class="laser-0" .../>
+        ...
+      </svg>
+
+    Each entity is a plain <rect> with:
+      - x, y, width, height matching the canvas AABB dimensions
+      - fill matching the canvas color
+      - CSS animation driving position from inflection keyframes
+
+    CSS seek for Playwright:
+      .seek-mode svg * {
+        animation-play-state: paused !important;
+        animation-delay: calc(-1 * var(--seek-time)) !important;
+      }
+
+    Playwright test flow:
+      1. Load css-validator page (side-by-side view)
+      2. Get inflection frames from SimOutput
+      3. For each frame: seekToFrame on canvas, seekToTime on CSS SVG
+      4. Screenshot both viewports
+      5. Pixel-diff, assert < 1% threshold
+plan:
+  - phase: "Timeline Mapping & CSS Keyframe Generation"
+    tasks:
+      - text: "Write tests for timeline mapper: inflection frames to CSS animation percentages"
+        done: false
+      - text: "Implement timeline mapper from SimOutput.getInflections()"
+        done: false
+      - text: "Write tests for entity keyframe generation (position keyframes from inflection points)"
+        done: false
+      - text: "Implement keyframe emitter for all entity types (invaders, ship, lasers, formations)"
+        done: false
+      - text: "Write tests for per-element data emitter (CSS variable style attributes)"
+        done: false
+      - text: "Implement data emitter"
+        done: false
+  - phase: "Hitbox SVG Compositor"
+    tasks:
+      - text: "Write tests for SVG compositor output (valid structure, correct rects)"
+        done: false
+      - text: "Implement SVG compositor: assembles rects with CSS animations"
+        done: false
+      - text: "Verify SVG uses identical colors and sizes as canvas renderer"
+        done: false
+  - phase: "Playwright Pixel-Diff Validation"
+    tasks:
+      - text: "Add Playwright, configure playwright.config.ts"
+        done: false
+      - text: "Build dev/css-validator: side-by-side canvas + CSS SVG with sync seeking"
+        done: false
+      - text: "Implement CSS seek controller (negative animation-delay technique)"
+        done: false
+      - text: "Write Playwright test: pixel-diff canvas vs SVG at all inflection frames"
+        done: false
+      - text: "Assert pixel diff under 1% at every inflection frame"
+        done: false
+extra: {}
