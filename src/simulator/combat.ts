@@ -1,0 +1,135 @@
+import type { LaserState, InvaderState, Position, BoundingBox } from '../types.js'
+
+// Default hitbox sizes — consumers should pass these from SimConfig
+export const DEFAULT_LASER_WIDTH = 2
+export const DEFAULT_INVADER_SIZE = 11
+
+export interface HitResult {
+  laserId: string
+  invaderId: string
+}
+
+export interface CheckHitsResult {
+  hits: HitResult[]
+  updatedLasers: LaserState[]
+  updatedInvaders: InvaderState[]
+  scoreIncrease: number
+}
+
+// ── Laser Management ──
+
+export function spawnLaser(id: string, shipPosition: Position, speed: number): LaserState {
+  return {
+    id,
+    position: { x: shipPosition.x, y: shipPosition.y },
+    speed,
+    active: true,
+  }
+}
+
+export function advanceLasers(
+  lasers: readonly LaserState[],
+  playArea: BoundingBox,
+  dt: number = 1,
+): LaserState[] {
+  const result: LaserState[] = []
+
+  for (const laser of lasers) {
+    if (!laser.active) continue
+
+    const newY = laser.position.y - laser.speed * dt
+
+    if (newY < playArea.y) continue
+
+    result.push({
+      ...laser,
+      position: { x: laser.position.x, y: newY },
+    })
+  }
+
+  return result
+}
+
+// ── Hit Detection & Score ──
+
+function aabbOverlap(
+  ax: number,
+  ay: number,
+  aw: number,
+  ah: number,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number,
+): boolean {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
+}
+
+export function checkHits(
+  lasers: readonly LaserState[],
+  invaders: readonly InvaderState[],
+  laserWidth: number = DEFAULT_LASER_WIDTH,
+  invaderSize: number = DEFAULT_INVADER_SIZE,
+  dt: number = 1,
+): CheckHitsResult {
+  const hits: HitResult[] = []
+  const consumedLaserIds = new Set<string>()
+  const damagedInvaders = new Map<string, { hp: number; destroyed: boolean }>()
+
+  for (const laser of lasers) {
+    if (!laser.active || consumedLaserIds.has(laser.id)) continue
+
+    // Swept Y: laser moved from (y + speed*dt) to (y) this frame.
+    // Extend AABB to cover the swept path to prevent tunneling through invaders.
+    const travelDist = laser.speed * dt
+    const sweptMinY = laser.position.y - laserWidth / 2
+    const sweptHeight = laserWidth + travelDist
+
+    for (const invader of invaders) {
+      if (invader.destroyed) continue
+      if (damagedInvaders.get(invader.id)?.destroyed) continue
+
+      const hit = aabbOverlap(
+        laser.position.x - laserWidth / 2,
+        sweptMinY,
+        laserWidth,
+        sweptHeight,
+        invader.position.x - invaderSize / 2,
+        invader.position.y - invaderSize / 2,
+        invaderSize,
+        invaderSize,
+      )
+
+      if (hit) {
+        consumedLaserIds.add(laser.id)
+
+        // One-hit kill — every hit destroys the invader
+        damagedInvaders.set(invader.id, {
+          hp: 0,
+          destroyed: true,
+        })
+
+        hits.push({ laserId: laser.id, invaderId: invader.id })
+        break // one laser hits one invader
+      }
+    }
+  }
+
+  const updatedLasers = lasers.filter((l) => l.active && !consumedLaserIds.has(l.id))
+
+  let scoreIncrease = 0
+  const updatedInvaders = invaders.map((inv) => {
+    const damage = damagedInvaders.get(inv.id)
+    if (!damage) return inv
+
+    if (damage.destroyed) scoreIncrease += inv.cell.count
+
+    return {
+      ...inv,
+      hp: damage.hp,
+      destroyed: damage.destroyed,
+    }
+  })
+
+  return { hits, updatedLasers, updatedInvaders, scoreIncrease }
+}

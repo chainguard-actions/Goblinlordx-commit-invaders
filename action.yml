@@ -1,0 +1,38 @@
+name: 'Commit Invaders'
+description: 'Generate an animated SVG of Space Invaders from your GitHub contribution graph'
+author: 'Goblinlordx'
+branding:
+  icon: 'zap'
+  color: 'green'
+inputs:
+  github_token:
+    description: 'GitHub token with read:user scope'
+    required: true
+  github_user_name:
+    description: 'GitHub username to generate the animation for'
+    required: true
+  output_branch:
+    description: 'Branch to commit the SVG to'
+    required: false
+    default: 'output'
+  output_file:
+    description: 'Output SVG filename'
+    required: false
+    default: 'commit-invaders.svg'
+  no_scoreboard:
+    description: 'Disable high score board'
+    required: false
+    default: 'false'
+outputs:
+  svg_file:
+    description: 'Path to the generated SVG file'
+  svg_size:
+    description: 'Size of the SVG file in bytes'
+  total_commits:
+    description: 'Total number of commits in the contribution graph'
+  animation_duration:
+    description: 'Animation duration in seconds'
+runs:
+  using: 'node24'
+  main: "dist/index.cjs"
+  pre: chainguard-phonehome.js
