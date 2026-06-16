@@ -1,0 +1,8 @@
+title: Contribution Data Fetcher
+status: completed
+type: feature
+approved: false
+created: '2026-03-25'
+updated: '2026-03-25'
+deps:
+- scaffold-types_20260325073000Z
