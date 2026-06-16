@@ -1,0 +1,228 @@
+id: foundation-sim_20260325065300Z
+title: "Foundation & Game Simulation"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Bootstrap the project and build the core game simulation engine. The
+    simulation runs entirely headless — no renderer required. It produces
+    a complete, deterministic state history that can be peeked at any frame.
+    Driven by contribution data (Grid) and a seeded PRNG that generates
+    organic ship behavior with natural variance (misses, hesitation,
+    unnecessary movements). Tracks a running score (destroyed commit count).
+  context: |
+    The simulation is the foundation of everything. It must:
+    - Run completely without any renderer (headless)
+    - Produce a complete state history addressable by frame number
+    - Support peeking state at any frame (random access, not just sequential)
+    - Be 100% deterministic: same (Grid, seed) → identical state history
+
+    Architecture:
+      FIXED behavior (entirely scripted from input data):
+        - Wave spawning: cells detach based on previous wave completion time
+          (not a fixed schedule — waves with more invaders take longer)
+        - Formation movement: fixed zigzag, speed increases as invaders die
+        - Laser physics: fixed speed upward
+        - Hit detection: automatic intersection check
+        - Health: commit level determines HP (level 1-2=1HP, 3=2HP, 4=3HP)
+
+      SEEDED PRNG (organic ship behavior):
+        - Seed = hash(username + generation_timestamp) → deterministic per run
+        - Same seed always produces identical behavior
+        - PRNG drives natural variance in ship actions:
+            Aim jitter: slight position offset when firing (occasional misses)
+            Fire delay variance: 3-12 frames between shots (not fixed rate)
+            Miss chance: ~8% of shots go slightly off-target
+            Unnecessary movements: ~5% chance of random repositioning
+            Reaction delay: 0-5 frame hesitation before targeting next invader
+        - Choreographer uses PRNG to generate ShipScript with human-like play
+        - Game still completes (all invaders eventually die) but the path
+          there looks organic, not robotic
+
+      SCORE TRACKING:
+        - Running score incremented on each invader destroy event
+        - Score = count of destroyed commits (invaders)
+        - Stored in GameState, accessible via peek() for rendering
+        - Final score = total active commits in the contribution graph
+
+      Wave spawning timing:
+        - Next wave spawns after current wave is CLEARED (all invaders destroyed)
+        - Wave clear time varies based on invader count and health in that wave
+        - This creates natural pacing — dense commit weeks = longer waves
+  codebase_analysis: |
+    Greenfield. Informed by Platane/snk: same simulate-then-render separation,
+    same GitHub GraphQL query. Our choreographer is analogous to snk's solver.
+  acceptance_criteria:
+    - Project scaffold: pnpm, TypeScript strict, vitest, eslint, prettier
+    - GitHub GraphQL fetcher retrieves contribution data, maps to Grid
+    - Simulation runs entirely headless — no rendering dependency
+    - State history is a complete array of GameState snapshots, one per frame
+    - peek(frame) returns GameState at any frame in O(1) or near-O(1) time
+    - Same (Grid, seed) always produces identical state history
+    - Seeded PRNG (seed = hash of username + timestamp) drives ship behavior variance
+    - Ship behavior includes natural misses, aim jitter, fire rate variance, reaction delays, unnecessary movements
+    - Game still completes (all invaders destroyed) despite imperfect play
+    - Wave manager groups columns into waves, spawns next wave on previous wave clear
+    - Wave clear time varies naturally based on invader count per wave
+    - Formations move in fixed zigzag, speed increases as invaders are destroyed
+    - ShipScript commands applied at specified frames (move, fire, stop)
+    - Health tracking per invader based on commit intensity level
+    - Score tracks running count of destroyed invaders (commits)
+    - GameState includes current score, accessible via peek()
+    - Final score equals total active commits in contribution graph
+    - Choreographer uses PRNG to generate organic ShipScript from Grid data
+    - End-to-end: Grid + seed → choreographer → simulate → all invaders destroyed
+    - All logic unit tested with fixture data
+  out_of_scope: |
+    Rendering of any kind (Track 2). CSS/SVG (Track 3). GitHub Action (Track 4).
+  technical_notes: |
+    Directory structure:
+      src/
+        types.ts              — all shared types
+        fetcher/
+          graphql.ts          — GitHub GraphQL client
+          parser.ts           — API response → Grid
+        simulator/
+          engine.ts           — runs simulation, produces StateHistory
+          wave-manager.ts     — groups columns, manages spawn-on-clear
+          formation.ts        — zigzag movement, boundary detection
+          combat.ts           — laser physics, hit detection, health, score
+          choreographer.ts    — uses PRNG to generate organic ShipScript
+          prng.ts             — seeded PRNG (deterministic random from seed)
+          types.ts            — SimEvent, GameState, ShipScript, StateHistory
+      tests/
+        fixtures/             — sample grids, expected outputs
+
+    Core architecture — simulation as state history:
+
+      StateHistory {
+        frames: GameState[]       // complete snapshot per frame
+        totalFrames: number
+        peek(frame: number): GameState   // random access
+      }
+
+      GameState {
+        frame: number
+        score: number             // running count of destroyed invaders
+        gridCells: CellState[]    // which cells are in grid vs detached
+        formations: FormationState[]
+        ship: ShipState
+        lasers: LaserState[]
+        effects: EffectState[]    // explosions, flashes
+        events: SimEvent[]        // events that occurred THIS frame
+      }
+
+    The simulation pre-computes the ENTIRE state history up front.
+    This is feasible because the game is short (~500-2000 frames).
+    The renderer (Track 2) just calls peek(n) — no simulation runs
+    during rendering. This guarantees determinism and enables instant
+    seeking to any frame.
+
+    Wave spawn timing (completion-based):
+      - Wave 1 spawns at frame 0 (or after brief intro delay)
+      - Wave N+1 spawns K frames after wave N clear event
+        (K = configurable spawn delay, e.g. 30 frames)
+      - Waves with more invaders or higher-HP invaders take longer
+        to clear → next wave spawns later → natural pacing
+
+    Seeded PRNG:
+      createPRNG(seed: string): PRNG
+      Seed = hash(username + generationTimestamp)
+      Methods: range(min, max), chance(probability), pick(array)
+      Must be deterministic — same seed always produces same sequence
+
+    ShipScript & choreographer:
+      ShipCommand =
+        | { frame: number, action: 'move', x: number }
+        | { frame: number, action: 'fire' }
+        | { frame: number, action: 'stop' }
+
+      Choreographer algorithm (PRNG-driven organic behavior):
+        1. Pre-compute all formation paths (zigzag is deterministic)
+        2. For each invader, find a good frame to shoot it
+        3. Use PRNG to inject natural variance:
+           - Aim jitter: rng.range(-2, 2) pixel offset on fire position
+           - Fire delay: rng.range(3, 12) frames between shots
+           - Miss chance: rng.chance(0.08) → offset laser to miss
+           - Unnecessary move: rng.chance(0.05) → random reposition
+           - Reaction delay: rng.range(0, 5) frames before moving to next target
+        4. Ensure game still completes: missed invaders get re-targeted
+        5. Output: ShipScript with human-like imperfect play
+
+    Score tracking:
+      - score increments by 1 on each 'destroy' event
+      - Stored in GameState.score
+      - Renderers display it as running counter
+      - Final score = total invaders = total active commits
+
+    Coordinate system:
+      Grid area: y = 0 to gridHeight
+      Play area: y = gridHeight + gap to playAreaBottom
+      Ship: near bottom of play area (fixed y)
+      Formations: spawn at top of play area, descend
+plan:
+  - phase: "Project Scaffold"
+    tasks:
+      - text: "Initialize package.json (pnpm, Node 20), tsconfig.json (strict), vitest, eslint, prettier"
+        done: false
+      - text: "Create directory structure: src/types.ts, src/fetcher/, src/simulator/, tests/fixtures/"
+        done: false
+  - phase: "Types, PRNG & Contribution Fetcher"
+    tasks:
+      - text: "Define all types: Grid, ShipScript, ShipCommand, SimEvent, GameState (with score), StateHistory, PRNG"
+        done: false
+      - text: "Write tests for seeded PRNG: same seed produces identical sequence, range/chance/pick work correctly"
+        done: false
+      - text: "Implement seeded PRNG: deterministic random from hash(username + timestamp)"
+        done: false
+      - text: "Write tests for fetcher parsing with fixture data"
+        done: false
+      - text: "Implement GraphQL client and response parser (API response → Grid)"
+        done: false
+      - text: "Write tests for fetcher error handling"
+        done: false
+  - phase: "Wave Manager & Formation"
+    tasks:
+      - text: "Write tests for wave manager: column grouping, spawn-on-clear timing, varied wave durations"
+        done: false
+      - text: "Implement wave manager: groups columns, spawns next wave after previous clears"
+        done: false
+      - text: "Write tests for formation: zigzag, boundary detection, speed increase on kills"
+        done: false
+      - text: "Implement formation: fixed zigzag per frame, speed scales with remaining invaders"
+        done: false
+  - phase: "Combat & Hit Detection"
+    tasks:
+      - text: "Write tests for laser physics: spawn, travel, despawn on hit/boundary"
+        done: false
+      - text: "Implement laser management"
+        done: false
+      - text: "Write tests for hit detection: intersection, HP reduction, destroy at 0 HP"
+        done: false
+      - text: "Implement hit detection and health tracking"
+        done: false
+      - text: "Write tests for score tracking: score increments on destroy, final score = total invaders"
+        done: false
+      - text: "Implement score tracking in GameState"
+        done: false
+  - phase: "Engine, Choreographer & State History"
+    tasks:
+      - text: "Write tests for engine: Grid + seed → StateHistory with correct frame count"
+        done: false
+      - text: "Implement engine: run full simulation, store complete GameState per frame"
+        done: false
+      - text: "Implement peek(frame): O(1) random access to any frame's GameState"
+        done: false
+      - text: "Write tests for choreographer: generates ShipScript with PRNG variance that still clears all waves"
+        done: false
+      - text: "Implement choreographer: uses PRNG for organic ship behavior (misses, jitter, delays, unnecessary moves)"
+        done: false
+      - text: "Write tests for miss recovery: missed invaders get re-targeted by choreographer"
+        done: false
+      - text: "Write end-to-end test: fixture Grid + seed → choreographer → engine → all invaders destroyed, final score correct"
+        done: false
+      - text: "Write determinism test: same (Grid, seed) produces identical StateHistory across runs"
+        done: false
+extra: {}

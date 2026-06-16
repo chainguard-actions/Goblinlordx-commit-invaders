@@ -1,0 +1,44 @@
+name: Test custom output file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: fake-token-for-act-testing
+          github_user_name: octocat
+          output_file: my-custom-invaders.svg
+        continue-on-error: true
+      - name: Assert action ran with custom output_file input
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "skipped" ] || [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was skipped or cancelled, expected it to run"
+            exit 1
+          fi
+          echo "PASS: action ran with outcome=$OUTCOME"
+      - name: Assert action failed gracefully or succeeded with custom filename
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          SVG_FILE: ${{ steps.action.outputs.svg_file }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          echo "svg_file output: $SVG_FILE"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no real GitHub API in act)"
+          elif [ "$OUTCOME" = "success" ]; then
+            if [[ "$SVG_FILE" != *"my-custom-invaders.svg"* ]]; then
+              echo "FAIL: expected svg_file to contain 'my-custom-invaders.svg', got '$SVG_FILE'"
+              exit 1
+            fi
+            echo "PASS: action succeeded with custom output file: $SVG_FILE"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi

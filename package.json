@@ -1,0 +1,65 @@
+{
+  "name": "commit-invaders",
+  "version": "1.2.0",
+  "description": "Generate an animated Space Invaders SVG from your GitHub contribution graph",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "commit-invaders": "./bin/commit-invaders.js"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "src/",
+    "action.yml",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Goblinlordx/commit-invaders"
+  },
+  "author": "Goblinlordx",
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint 'src/**/*.ts'",
+    "format": "prettier --write 'src/**/*.ts'",
+    "format:check": "prettier --check 'src/**/*.ts'",
+    "typecheck": "tsc --noEmit",
+    "dev:sim": "vite dev/sim-viewer",
+    "dev:entities": "vite dev/entity-test",
+    "dev:validator": "vite dev/entity-validator",
+    "dev:css-validator": "vite dev/css-validator",
+    "dev:demo": "vite demo",
+    "test:visual": "playwright test"
+  },
+  "keywords": [
+    "github",
+    "action",
+    "contribution-graph",
+    "space-invaders",
+    "svg",
+    "animation"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.5.0",
+    "eslint": "^10.1.0",
+    "prettier": "^3.8.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.57.2",
+    "vite": "^8.0.2",
+    "vitest": "^4.1.1"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.0",
+    "@actions/exec": "^3.0.0",
+    "@actions/io": "^3.0.2",
+    "@octokit/graphql": "^9.0.3"
+  }
+}

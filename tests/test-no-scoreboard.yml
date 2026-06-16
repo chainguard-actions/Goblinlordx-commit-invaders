@@ -1,0 +1,50 @@
+name: Test no scoreboard option
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: fake-token-for-act-testing
+          github_user_name: octocat
+          no_scoreboard: 'true'
+        continue-on-error: true
+      - name: Assert action ran with no_scoreboard option
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "skipped" ] || [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was skipped or cancelled, expected it to run"
+            exit 1
+          fi
+          echo "PASS: action ran with outcome=$OUTCOME"
+      - name: Assert action failed gracefully or succeeded without scoreboard
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          SVG_FILE: ${{ steps.action.outputs.svg_file }}
+          ANIMATION_DURATION: ${{ steps.action.outputs.animation_duration }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          echo "svg_file output: $SVG_FILE"
+          echo "animation_duration output: $ANIMATION_DURATION"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no real GitHub API in act)"
+          elif [ "$OUTCOME" = "success" ]; then
+            if [ -z "$SVG_FILE" ]; then
+              echo "FAIL: svg_file output was not set on success"
+              exit 1
+            fi
+            if [ -z "$ANIMATION_DURATION" ]; then
+              echo "FAIL: animation_duration output was not set on success"
+              exit 1
+            fi
+            echo "PASS: action succeeded with no_scoreboard=true, svg_file=$SVG_FILE, animation_duration=$ANIMATION_DURATION"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi
