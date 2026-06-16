@@ -1,0 +1,54 @@
+name: Test custom output file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up local git remote to allow push
+        run: |
+          # Create a bare repo to act as origin so the action's git push succeeds
+          git init --bare /tmp/origin-repo.git
+          git remote remove origin 2>/dev/null || true
+          git remote add origin /tmp/origin-repo.git
+          git push origin HEAD:main --force
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          github_user_name: octocat
+          output_file: my-custom-invaders.svg
+      - name: Assert svg_file output matches custom filename
+        env:
+          ACTUAL: ${{ steps.action.outputs.svg_file }}
+        run: |
+          echo "svg_file: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: svg_file output is empty"
+            exit 1
+          fi
+          if [[ "$ACTUAL" != *"my-custom-invaders.svg"* ]]; then
+            echo "FAIL: expected svg_file to contain 'my-custom-invaders.svg', got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS: svg_file=$ACTUAL"
+      - name: Assert custom SVG file exists on disk
+        env:
+          SVG_FILE: ${{ steps.action.outputs.svg_file }}
+        run: |
+          echo "Checking for SVG file: $SVG_FILE"
+          if [ ! -f "$SVG_FILE" ]; then
+            echo "FAIL: SVG file not found at $SVG_FILE"
+            exit 1
+          fi
+          echo "PASS: SVG file exists"
+      - name: Assert SVG file contains SVG content
+        env:
+          SVG_FILE: ${{ steps.action.outputs.svg_file }}
+        run: |
+          if ! grep -q '<svg' "$SVG_FILE"; then
+            echo "FAIL: file does not appear to be an SVG"
+            exit 1
+          fi
+          echo "PASS: file contains SVG content"
