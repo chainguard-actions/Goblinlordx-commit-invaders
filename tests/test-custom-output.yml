@@ -1,4 +1,4 @@
-name: Test basic usage
+name: Test custom output filename
 on:
   workflow_dispatch:
 jobs:
@@ -20,9 +20,9 @@ jobs:
         with:
           github_token: ${{ github.token }}
           github_user_name: octocat
-          output_branch: output-test-basic
-          output_file: commit-invaders.svg
-      - name: Assert svg_file output is set
+          output_branch: output-test-custom
+          output_file: my-custom-invaders.svg
+      - name: Assert svg_file output contains custom filename
         env:
           ACTUAL: ${{ steps.action.outputs.svg_file }}
         run: |
@@ -31,7 +31,39 @@ jobs:
             echo "FAIL: svg_file output is empty"
             exit 1
           fi
-          echo "PASS: svg_file=$ACTUAL"
+          if ! echo "$ACTUAL" | grep -q 'my-custom-invaders.svg'; then
+            echo "FAIL: svg_file output does not contain custom filename 'my-custom-invaders.svg', got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: svg_file contains custom filename"
+      - name: Assert total_commits is a non-negative integer
+        env:
+          ACTUAL: ${{ steps.action.outputs.total_commits }}
+        run: |
+          echo "actual total_commits: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: total_commits output is empty"
+            exit 1
+          fi
+          if ! echo "$ACTUAL" | grep -qE '^[0-9]+$'; then
+            echo "FAIL: total_commits is not a non-negative integer: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: total_commits=$ACTUAL"
+      - name: Assert animation_duration is a positive number
+        env:
+          ACTUAL: ${{ steps.action.outputs.animation_duration }}
+        run: |
+          echo "actual animation_duration: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: animation_duration output is empty"
+            exit 1
+          fi
+          if ! echo "$ACTUAL" | grep -qE '^[0-9]+(\.[0-9]+)?$'; then
+            echo "FAIL: animation_duration is not a valid number: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: animation_duration=$ACTUAL"
       - name: Assert svg_size output is set and positive
         env:
           ACTUAL: ${{ steps.action.outputs.svg_size }}
@@ -46,34 +78,13 @@ jobs:
             exit 1
           fi
           echo "PASS: svg_size=$ACTUAL"
-      - name: Assert total_commits output is set
-        env:
-          ACTUAL: ${{ steps.action.outputs.total_commits }}
-        run: |
-          echo "actual total_commits: $ACTUAL"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: total_commits output is empty"
-            exit 1
-          fi
-          echo "PASS: total_commits=$ACTUAL"
-      - name: Assert animation_duration output is set
-        env:
-          ACTUAL: ${{ steps.action.outputs.animation_duration }}
-        run: |
-          echo "actual animation_duration: $ACTUAL"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: animation_duration output is empty"
-            exit 1
-          fi
-          echo "PASS: animation_duration=$ACTUAL"
-      - name: Assert SVG file contains SVG content
+      - name: Assert custom SVG file contains SVG content
         env:
           SVG_FILE: ${{ steps.action.outputs.svg_file }}
         run: |
           echo "Checking SVG content in: $SVG_FILE"
-          # The action writes the light SVG as <baseName>.svg
           FOUND=0
-          for candidate in "$SVG_FILE" "commit-invaders.svg"; do
+          for candidate in "$SVG_FILE" "my-custom-invaders.svg"; do
             if [ -f "$candidate" ] && grep -q '<svg' "$candidate"; then
               echo "PASS: file contains SVG content at $candidate"
               FOUND=1
@@ -81,7 +92,7 @@ jobs:
             fi
           done
           if [ "$FOUND" -eq 0 ]; then
-            echo "FAIL: SVG file not found or does not contain SVG content"
+            echo "FAIL: custom SVG file not found or does not contain SVG content"
             ls -la || true
             exit 1
           fi

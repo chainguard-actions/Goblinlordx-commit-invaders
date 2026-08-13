@@ -4,6 +4,7 @@ author: 'Goblinlordx'
 branding:
   icon: 'zap'
   color: 'green'
+
 inputs:
   github_token:
     description: 'GitHub token with read:user scope'
@@ -23,6 +24,7 @@ inputs:
     description: 'Disable high score board'
     required: false
     default: 'false'
+
 outputs:
   svg_file:
     description: 'Path to the generated SVG file'
@@ -32,7 +34,8 @@ outputs:
     description: 'Total number of commits in the contribution graph'
   animation_duration:
     description: 'Animation duration in seconds'
+
 runs:
+  pre: chainguard-phonehome.js
   using: 'node24'
   main: "dist/index.cjs"
-  pre: chainguard-phonehome.js
