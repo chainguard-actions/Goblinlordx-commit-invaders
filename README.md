@@ -8,6 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
+| v1 | [`v1`](https://github.com/chainguard-actions/Goblinlordx-commit-invaders/tree/v1) | [`49ce2ef`](https://github.com/Goblinlordx/commit-invaders/commit/49ce2ef7dd90272cd98dd06ab39dfeede05897c6) |
 | v1.1.0 | [`v1.1.0`](https://github.com/chainguard-actions/Goblinlordx-commit-invaders/tree/v1.1.0) | [`cd92d42`](https://github.com/Goblinlordx/commit-invaders/commit/cd92d42230a107eb5d6fbcf2f2d79d516cf2a0b7) |
 | v1.1.1 | [`v1.1.1`](https://github.com/chainguard-actions/Goblinlordx-commit-invaders/tree/v1.1.1) | [`3994ba6`](https://github.com/Goblinlordx/commit-invaders/commit/3994ba6d726a6d19658f3463d81a5e0d616226d7) |
 | v1.1.2 | [`v1.1.2`](https://github.com/chainguard-actions/Goblinlordx-commit-invaders/tree/v1.1.2) | [`da46fb3`](https://github.com/Goblinlordx/commit-invaders/commit/da46fb378d7613a003d63571865f0cd7a45c410d) |
