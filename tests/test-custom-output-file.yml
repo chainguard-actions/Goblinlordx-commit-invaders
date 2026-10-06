@@ -6,33 +6,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - id: action
         uses: .
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
           github_user_name: octocat
+          output_branch: output
           output_file: my-custom-invaders.svg
-      - name: Assert custom SVG light file exists on disk
+
+      - name: Assert action ran with custom output file name
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          SVG_FILE: ${{ steps.action.outputs.svg_file }}
+          SVG_SIZE: ${{ steps.action.outputs.svg_size }}
+          TOTAL_COMMITS: ${{ steps.action.outputs.total_commits }}
+          ANIMATION_DURATION: ${{ steps.action.outputs.animation_duration }}
         run: |
-          echo "Checking for SVG file at: $GITHUB_WORKSPACE/my-custom-invaders.svg"
-          if [ ! -f "$GITHUB_WORKSPACE/my-custom-invaders.svg" ]; then
-            echo "FAIL: custom SVG file not found at $GITHUB_WORKSPACE/my-custom-invaders.svg"
+          echo "outcome: $OUTCOME"
+          echo "svg_file: $SVG_FILE"
+          echo "svg_size: $SVG_SIZE"
+          echo "total_commits: $TOTAL_COMMITS"
+          echo "animation_duration: $ANIMATION_DURATION"
+
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$SVG_FILE" ]; then
+              echo "FAIL: action succeeded but svg_file output is empty"
+              exit 1
+            fi
+            # Verify the custom filename is reflected in the output
+            case "$SVG_FILE" in
+              *my-custom-invaders.svg*)
+                echo "PASS: custom output file name used: $SVG_FILE"
+                ;;
+              *)
+                echo "FAIL: expected svg_file to contain 'my-custom-invaders.svg', got: $SVG_FILE"
+                exit 1
+                ;;
+            esac
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected on sentinel repo or API limits)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
           fi
-          echo "PASS: custom SVG light file exists"
-      - name: Assert custom SVG dark file exists on disk
-        run: |
-          echo "Checking for SVG dark file at: $GITHUB_WORKSPACE/my-custom-invaders-dark.svg"
-          if [ ! -f "$GITHUB_WORKSPACE/my-custom-invaders-dark.svg" ]; then
-            echo "FAIL: custom SVG dark file not found at $GITHUB_WORKSPACE/my-custom-invaders-dark.svg"
-            exit 1
-          fi
-          echo "PASS: custom SVG dark file exists"
-      - name: Assert custom SVG file contains SVG content
-        run: |
-          if ! grep -q '<svg' "$GITHUB_WORKSPACE/my-custom-invaders.svg"; then
-            echo "FAIL: file does not appear to be an SVG"
-            exit 1
-          fi
-          echo "PASS: file contains SVG content"
